@@ -10,6 +10,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.Toast;
+
 import com.squareup.timessquare.CalendarCellDecorator;
 import com.squareup.timessquare.CalendarPickerView;
 import com.squareup.timessquare.CalendarPickerView.SelectionMode;
@@ -62,6 +63,8 @@ public class SampleTimesSquareActivity extends Activity {
     final Button hebrew = (Button) findViewById(R.id.button_hebrew);
     final Button arabic = (Button) findViewById(R.id.button_arabic);
     final Button customView = (Button) findViewById(R.id.button_custom_view);
+    final Button oneRow = (Button) findViewById(R.id.button_one_row);
+    final Button grid = (Button) findViewById(R.id.button_grid);
 
     modeButtons.addAll(Arrays.asList(single, multi, range, displayOnly, decorator, customView));
 
@@ -180,6 +183,20 @@ public class SampleTimesSquareActivity extends Activity {
         calendar.init(lastYear.getTime(), nextYear.getTime())
                 .inMode(SelectionMode.SINGLE)
                 .withSelectedDate(new Date());
+      }
+    });
+
+    oneRow.setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(final View v) {
+        calendar.setColumnCount(1);
+      }
+    });
+
+    grid.setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(final View v) {
+        calendar.setColumnCount(2);
       }
     });
 

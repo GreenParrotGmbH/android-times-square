@@ -5,15 +5,18 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.ListView;
 import android.widget.Toast;
+
 import com.squareup.timessquare.MonthCellDescriptor.RangeState;
+
 import java.text.DateFormat;
 import java.text.DateFormatSymbols;
 import java.text.SimpleDateFormat;
@@ -41,7 +44,8 @@ import static java.util.Calendar.YEAR;
  * {@link FluentInitializer} methods returned.  The currently selected date can be retrieved with
  * {@link #getSelectedDate()}.
  */
-public class CalendarPickerView extends ListView {
+@SuppressWarnings("deprecation")
+public class CalendarPickerView extends RecyclerView {
   public enum SelectionMode {
     /**
      * Only one date will be selectable.  If there is already a selected date and you select a new
@@ -127,10 +131,7 @@ public class CalendarPickerView extends ListView {
     a.recycle();
 
     adapter = new MonthAdapter();
-    setDivider(null);
-    setDividerHeight(0);
     setBackgroundColor(bg);
-    setCacheColorHint(bg);
     locale = Locale.getDefault();
     today = Calendar.getInstance(locale);
     minCal = Calendar.getInstance(locale);
@@ -147,6 +148,10 @@ public class CalendarPickerView extends ListView {
       init(new Date(), nextYear.getTime()) //
           .withSelectedDate(new Date());
     }
+
+    setLayoutManager(new GridLayoutManager(context, 1));
+    addItemDecoration(new PaddingDecoration());
+    setClipChildren(false);
   }
 
   /**
@@ -256,6 +261,7 @@ public class CalendarPickerView extends ListView {
     return init(minDate, maxDate, Locale.getDefault());
   }
 
+  @SuppressWarnings("WeakerAccess")
   public class FluentInitializer {
     /** Override the {@link SelectionMode} from the default ({@link SelectionMode#SINGLE}). */
     public FluentInitializer inMode(SelectionMode mode) {
@@ -338,7 +344,7 @@ public class CalendarPickerView extends ListView {
         if (smoothScroll) {
           smoothScrollToPosition(selectedIndex);
         } else {
-          setSelection(selectedIndex);
+          scrollToPosition(selectedIndex);
         }
       }
     });
@@ -695,6 +701,7 @@ public class CalendarPickerView extends ListView {
   }
 
   /** Hold a cell with a month-index. */
+  @SuppressWarnings("WeakerAccess")
   private static class MonthCellWithMonthIndex {
     public MonthCellDescriptor cell;
     public int monthIndex;
@@ -726,45 +733,63 @@ public class CalendarPickerView extends ListView {
     return null;
   }
 
-  private class MonthAdapter extends BaseAdapter {
-    private final LayoutInflater inflater;
+  private class MonthAdapter extends RecyclerView.Adapter<MonthAdapter.Holder> {
+    private final LayoutInflater inflater = LayoutInflater.from(getContext());
 
-    private MonthAdapter() {
-      inflater = LayoutInflater.from(getContext());
-    }
-
-    @Override public boolean isEnabled(int position) {
-      // Disable selectability: each cell will handle that itself.
-      return false;
-    }
-
-    @Override public int getCount() {
+    @Override
+    public int getItemCount() {
       return months.size();
     }
 
-    @Override public Object getItem(int position) {
-      return months.get(position);
-    }
-
-    @Override public long getItemId(int position) {
+    @Override
+    public long getItemId(final int position) {
       return position;
     }
 
-    @Override public View getView(int position, View convertView, ViewGroup parent) {
-      MonthView monthView = (MonthView) convertView;
-      if (monthView == null
-             || !monthView.getTag(R.id.day_view_adapter_class).equals(dayViewAdapter.getClass())) {
-        monthView =
-            MonthView.create(parent, inflater, weekdayNameFormat, listener, today, dividerColor,
+    @Override
+    public Holder onCreateViewHolder(final ViewGroup parent, final int viewType) {
+      MonthView monthView = MonthView.create(parent, inflater, weekdayNameFormat, listener, today, dividerColor,
                 dayBackgroundResId, dayTextColorResId, titleTextColor, displayHeader,
                 headerTextColor, decorators, locale, dayViewAdapter);
-        monthView.setTag(R.id.day_view_adapter_class, dayViewAdapter.getClass());
-      } else {
-        monthView.setDecorators(decorators);
+      return new Holder(monthView, dayViewAdapter.getClass());
+    }
+
+    @Override
+    public void onBindViewHolder(final Holder holder, final int position) {
+      MonthView monthView = holder.monthView;
+
+      monthView.setDecorators(decorators);
+      monthView.init(months.get(position), cells.get(position), displayOnly, titleTypeface, dateTypeface);
+    }
+
+    class Holder extends RecyclerView.ViewHolder {
+      final MonthView monthView;
+      final Class<? extends DayViewAdapter> dayViewAdapterClass;
+
+      Holder(final MonthView monthView, Class<? extends DayViewAdapter> dayViewAdapterClass) {
+        super(monthView);
+        this.monthView = monthView;
+        this.dayViewAdapterClass = dayViewAdapterClass;
       }
-      monthView.init(months.get(position), cells.get(position), displayOnly, titleTypeface,
-          dateTypeface);
-      return monthView;
+    }
+  }
+
+  private class PaddingDecoration extends RecyclerView.ItemDecoration {
+    @Override
+    public void getItemOffsets(final Rect outRect, final View view, final RecyclerView parent, final State state) {
+      GridLayoutManager gridManager = (GridLayoutManager) getLayoutManager();
+      int columnCount = gridManager.getSpanCount();
+      if (columnCount == 1) return;
+
+      int position = ((LayoutParams) view.getLayoutParams()).getViewLayoutPosition();
+
+      int padding = (getPaddingLeft() + getPaddingRight()) / 4;
+      if (position % columnCount != columnCount - 1) {
+        outRect.right += padding ;
+      }
+      if (position % columnCount != 0) {
+        outRect.left += padding ;
+      }
     }
   }
 
@@ -915,6 +940,11 @@ public class CalendarPickerView extends ListView {
   /** Set a listener to intercept clicks on calendar cells. */
   public void setCellClickInterceptor(CellClickInterceptor listener) {
     cellClickInterceptor = listener;
+  }
+
+  /** Sets the number of rows. */
+  public void setColumnCount(int rowsCount) {
+    ((GridLayoutManager) getLayoutManager()).setSpanCount(rowsCount);
   }
 
   /**

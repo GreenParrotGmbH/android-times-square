@@ -33,6 +33,7 @@ android {
 }
 
 dependencies {
+  compile deps.recyclerview
   testCompile deps.festandroid
   testCompile deps.junit
   testCompile deps.robolectric
