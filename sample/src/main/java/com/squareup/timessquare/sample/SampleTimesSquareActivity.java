@@ -196,7 +196,7 @@ public class SampleTimesSquareActivity extends Activity {
     grid.setOnClickListener(new OnClickListener() {
       @Override
       public void onClick(final View v) {
-        calendar.setColumnCount(2);
+        calendar.setColumnCount(3);
       }
     });
 
